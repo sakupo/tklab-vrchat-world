@@ -6,6 +6,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using VRC.Editor;
 using VRC.SDK3.Editor;
 using VRC.SDKBase.Editor;
 using VRC.SDKBase.Editor.BuildPipeline;
@@ -74,7 +75,7 @@ namespace VRC.SDK3.Editor
             
             foreach (VRC.SDK3.Components.VRCObjectSync os in Object.FindObjectsOfType<VRC.SDK3.Components.VRCObjectSync>())
             {
-                if (os.GetComponents<VRC.Udon.UdonBehaviour>().Any((ub) => ub.Reliable))
+                if (os.GetComponents<VRC.Udon.UdonBehaviour>().Any((ub) => ub.SyncIsManual))
                     _builder.OnGUIError(scene, "Object Sync cannot share an object with a manually synchronized Udon Behaviour",
                         delegate { Selection.activeObject = os.gameObject; }, null);
                 if (os.GetComponent<VRC.SDK3.Components.VRCObjectPool>() != null)
@@ -145,7 +146,6 @@ namespace VRC.SDK3.Editor
                     else
                     {
                         VRC_SdkBuilder.shouldBuildUnityPackage = false;
-                        VRC_SdkBuilder.SetNumClients(VRCSettings.NumClients);
                         VRC_SdkBuilder.RunLastExportedSceneResource();
                     }
                 }
@@ -183,7 +183,6 @@ namespace VRC.SDK3.Editor
                     }
                     else
                     {
-                        VRC_SdkBuilder.SetNumClients(VRCSettings.NumClients);
                         VRC_SdkBuilder.ExportSceneResourceAndRun();
                     }
                 }

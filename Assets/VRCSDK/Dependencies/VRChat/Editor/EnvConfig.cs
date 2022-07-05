@@ -11,6 +11,8 @@ using UnityEngine.Rendering;
 using VRC.SDKBase.Validation.Performance.Stats;
 using Object = UnityEngine.Object;
 
+namespace VRC.Editor
+{
 /// <summary>
 /// Setup up SDK env on editor launch
 /// </summary>
@@ -93,6 +95,15 @@ public class EnvConfig
         "Legacy Shaders/Transparent/Specular",
         "Legacy Shaders/Transparent/VertexLit",
         "Legacy Shaders/VertexLit",
+        "Legacy Shaders/Particles/Additive",
+        "Legacy Shaders/Particles/~Additive-Multiply",
+        "Legacy Shaders/Particles/Additive (Soft)",
+        "Legacy Shaders/Particles/Alpha Blended",
+        "Legacy Shaders/Particles/Anim Alpha Blended",
+        "Legacy Shaders/Particles/Multiply",
+        "Legacy Shaders/Particles/Multiply (Double)",
+        "Legacy Shaders/Particles/Alpha Blended Premultiply",
+        "Legacy Shaders/Particles/VertexLit Blended",
         "Mobile/Particles/Additive",
         "Mobile/Particles/Alpha Blended",
         "Mobile/Particles/Multiply",
@@ -144,6 +155,20 @@ public class EnvConfig
         "VRChat/Mobile/Particles/Additive",
         "VRChat/Mobile/Particles/Multiply",
         "VRChat/Mobile/Standard Lite",
+        "TextMeshPro/Distance Field (Surface)",
+        "TextMeshPro/Mobile/Distance Field (No ZTest)",
+        "TextMeshPro/Distance Field Overlay",
+        "TextMeshPro/Sprite",
+        "TextMeshPro/Mobile/Distance Field - Masking",
+        "TextMeshPro/Mobile/Distance Field Overlay",
+        "TextMeshPro/Mobile/Distance Field (Surface)",
+        "TextMeshPro/Mobile/Distance Field",
+        "TextMeshPro/Distance Field",
+        "TextMeshPro/Bitmap Custom Atlas",
+        "VRChat/UI/TextMeshPro/Mobile/Distance Field",
+        "TextMeshPro/Mobile/Bitmap",
+        "TextMeshPro/Bitmap",
+        "TextMeshPro/Mobile/Distance Field - Masking (NoZTest)"
     };
     #endif
 
@@ -167,7 +192,7 @@ public class EnvConfig
         }
     }
 
-    public static void RequestConfigureSettings()
+        private static void RequestConfigureSettings()
     {
         _requestConfigureSettings = true;
     }
@@ -178,7 +203,7 @@ public class EnvConfig
         RequestConfigureSettings();
     }
 
-    public static bool ConfigureSettings()
+        private static bool ConfigureSettings()
     {
         CheckForFirstInit();
 
@@ -195,11 +220,13 @@ public class EnvConfig
             VRC.Core.ConfigManager.RemoteConfig.Init();
         }
 
+        ConfigureAssets();
+        
         LoadEditorResources();
 
         return true;
     }
-
+    
     #if !VRC_CLIENT
     private static void SetDLLPlatforms(string dllName, bool active)
     {
@@ -334,7 +361,11 @@ public class EnvConfig
                 case LogType.Warning:
                 case LogType.Log:
                 {
+                    #if UNITY_EDITOR
+                    PlayerSettings.SetStackTraceLogType(logType, StackTraceLogType.ScriptOnly);
+                    #else
                     PlayerSettings.SetStackTraceLogType(logType, StackTraceLogType.None);
+                    #endif 
                     break;
                 }
                 default:
@@ -354,7 +385,7 @@ public class EnvConfig
             return;
         }
 
-        SerializedObject playerSettingsSerializedObject = new SerializedObject(playerSettings.Cast<UnityEngine.Object>().ToArray());
+            SerializedObject playerSettingsSerializedObject = new SerializedObject(playerSettings.Cast<Object>().ToArray());
         SerializedProperty batchingSettings = playerSettingsSerializedObject.FindProperty("m_BuildTargetBatching");
         if(batchingSettings == null)
         {
@@ -418,15 +449,13 @@ public class EnvConfig
         }
     }
 
-    public static bool CheckForFirstInit()
+    private static void CheckForFirstInit()
     {
         bool firstLaunch = SessionState.GetBool("EnvConfigFirstLaunch", true);
         if(firstLaunch)
         {
             SessionState.SetBool("EnvConfigFirstLaunch", false);
         }
-
-        return firstLaunch;
     }
 
     private static void SetDefaultGraphicsAPIs()
@@ -493,7 +522,7 @@ public class EnvConfig
         SerializedObject qualitySettings = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath(qualitySettingsAssetPath)[0]);
 
         SerializedProperty qualitySettingsPresets = qualitySettings.FindProperty("m_QualitySettings");
-        qualitySettingsPresets.arraySize = _graphicsPresets.Length;
+            qualitySettingsPresets.arraySize = _graphicsPresets.Length;
 
         bool changedProperty = false;
         for(int index = 0; index < _graphicsPresets.Length; index++)
@@ -610,7 +639,7 @@ public class EnvConfig
                         {
                             continue;
                         }
-                    
+
                         break;
                     }
                 }
@@ -701,7 +730,7 @@ public class EnvConfig
         List<Shader> foundShaders = new List<Shader>();
         #endif
 
-        foreach(string shader in ensureTheseShadersAreAvailable)
+        foreach(string shader in ensureTheseShadersAreAvailable.OrderBy(s => s, StringComparer.Ordinal))
         {
             if(foundShaders.Any(s => s.name == shader))
             {
@@ -724,6 +753,8 @@ public class EnvConfig
         {
             alwaysIncludedShaders.Shaders[shaderIdx] = foundShaders[shaderIdx];
         }
+
+        EditorUtility.SetDirty(alwaysIncludedShaders);
         #endif
 
         SerializedProperty preloaded = graphicsManager.FindProperty("m_PreloadedShaders");
@@ -895,7 +926,11 @@ public class EnvConfig
         PlayerSettings.gcIncremental = true;
         #endif
 
+#if VRC_VR_WAVE
+        PlayerSettings.stereoRenderingPath = StereoRenderingPath.MultiPass;     // Need to use Multi-pass on Wave SDK otherwise mirrors break
+#else
         PlayerSettings.stereoRenderingPath = StereoRenderingPath.SinglePass;
+#endif
 
 #if UNITY_2018_4_OR_NEWER && !UNITY_2019_3_OR_NEWER
         PlayerSettings.scriptingRuntimeVersion = ScriptingRuntimeVersion.Latest;
@@ -920,6 +955,12 @@ public class EnvConfig
         PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel29;
         #else
         PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
+        #endif
+
+        #if VRC_VR_OCULUS
+#pragma warning disable CS0618
+        PlayerSettings.VROculus.v2Signing = true;
+#pragma warning restore CS0618
         #endif
 #else
         PlayerSettings.SetAdditionalIl2CppArgs("");
@@ -1000,6 +1041,13 @@ public class EnvConfig
         #endif
     }
 
+    public static void ConfigureAssets(bool forStandaloneBuild = false)
+    {
+#if VRC_CLIENT
+        VRC.UI.Client.Editor.VRCUIManagerEditorHelpers.ConfigureNewUIAssets(forStandaloneBuild);
+#endif
+    }
+
     private static void LoadEditorResources()
     {
         AvatarPerformanceStats.Initialize();
@@ -1035,7 +1083,8 @@ public class EnvConfig
         }
     }
     
-    private static readonly Dictionary<string, object>[] _graphicsPresets = {
+        private static readonly Dictionary<string, object>[] _graphicsPresets =
+        {
         new Dictionary<string, object>
         {
             {"name", "Low"},
@@ -1227,4 +1276,5 @@ public class EnvConfig
             {"excludedTargetPlatforms", new []{"Standalone"}}
         }
     };
+}
 }
