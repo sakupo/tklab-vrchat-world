@@ -1,1 +1,2 @@
-# w8e9-world
+# tklab-vrchat-world
+研究室ワールド
